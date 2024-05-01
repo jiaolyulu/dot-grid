@@ -6,7 +6,6 @@ const Setting =( { size, setSize }:{size:SizeInterface, setSize:React.Dispatch<R
     const [ open, setOpen ] = useState( false )
     const [ input, setInput ]= useState<{width:string, height:string, margin:string}>( { width:'', height:'', margin:'' } )
     
-    
     const toggleDrawer = ( newOpen: boolean ) => () => {
         setOpen( newOpen )
     }

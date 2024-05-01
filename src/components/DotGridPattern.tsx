@@ -1,7 +1,6 @@
-import React     from 'react'
 import svgConsts from '../utils/svgConsts'
 
-const DotGridPattern = ({margin}:{margin:number}) => {
+const DotGridPattern = ( { margin }:{margin:number} ) => {
     const {
         gridUnit, dotRadius, 
     } = svgConsts

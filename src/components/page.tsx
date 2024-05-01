@@ -1,9 +1,9 @@
-import Setting                                  from './Setting'
-import DotGridPattern                           from './DotGridPattern'
-import DotRects                                 from './DotRects'
-import { useState, useRef, useMemo, useEffect } from 'react'
-import { Tooltip }                              from '@mui/material'
-import { snapTo50, snapTo25 }                   from '../utils/snap'
+import Setting                                     from './Setting'
+import DotGridPattern                              from './DotGridPattern'
+import DotRects                                    from './DotRects'
+import { useState, useRef, useMemo, PointerEvent } from 'react'
+import { Tooltip }                                 from '@mui/material'
+import { snapTo50 }                                from '../utils/snap'
 
 export interface SizeInterface {width:number, height:number, margin:number, widthOnDrag:number, heightOnDrag:number, drag:boolean}
 interface GridNodeInterface { value:{ x:number, y:number, width:number, height:number }, left?:GridNodeInterface, right?:GridNodeInterface, top?: GridNodeInterface, bottom?:GridNodeInterface }
@@ -20,14 +20,14 @@ const SvgPage = () =>{
         originPos: { } } ) )
 
     const gridNode = useRef<{root:GridNodeInterface}>( { root:{ value:{ x:0, y:0, width:size.width, height:size.height } } } )
-    const currentNode = gridNode.current.root
+    const currentNode = useRef( gridNode.current.root )
     const [ grids, setGrids ]=useState<GridInterface[]>( [ { x:0, y:0, width:size.width, height:size.height, nodeHead:currentNode.current } ] )
     const highlightBorderTimeout = useRef<number[][]>( [] )
     const highlightBorderRef = useRef<SVGPathElement[][]>( [] )
-    const handlePointerDown = ( e, index:number ) => {
+    const handlePointerDown = ( e:PointerEvent, index:number ) => {
         setSize( { ...size, drag:true } )
-        const el = e.target
-        const bbox = e.target.getBoundingClientRect()
+        const el = e.target as SVGRectElement
+        const bbox = el.getBoundingClientRect()
         const x = e.clientX -bbox.left+bbox.width/2
         const y = e.clientY -bbox.top+bbox.height/2
         
@@ -45,8 +45,9 @@ const SvgPage = () =>{
         } 
         setPosition( newPosition )
     }
-    const handlePointerMove = ( e, index:number ) => {
-        const bbox = e.target.getBoundingClientRect()
+    const handlePointerMove = ( e:PointerEvent, index:number ) => {
+        const el = e.target as SVGRectElement
+        const bbox = el.getBoundingClientRect()
         const x = e.clientX -bbox.width/2+bbox.width/2
         const y = e.clientY -bbox.height/2+bbox.height/2
         if ( position[ index ].originPos.x && position[ index ].originPos.y ){
@@ -72,7 +73,7 @@ const SvgPage = () =>{
         }
         
     }
-    const handlePointerUp = ( e, index:number ) => {
+    const handlePointerUp = ( _e:PointerEvent, index:number ) => {
         const newPosition = [ ...position ]
         newPosition[ index ]={
             ...position[ index ],
@@ -85,7 +86,7 @@ const SvgPage = () =>{
         }
         
     }
-    const getGridInfo=( { x, y, width, height } )=>{
+    const getGridInfo=( { x, y }:GridInterface )=>{
         const gridInfo: LineInfoInterface[]= [ { x, y, width:10, height, x1:x, y1:y, x2:x, y2:y+height, type:'vertical' }, 
             { x, y:y+height-10, width, height:10, x1:x, y1:y+height, x2:x+width, y2:y+height, type:'horizontal' }, 
             { x, y, width, height:10, x1:x, y1:y, x2:x+width, y2:y, type:'horizontal' }, 
@@ -100,7 +101,7 @@ const SvgPage = () =>{
     const activeLineConfig=useMemo( ()=>{
         const originalConfig = getGridInfo( grids[ activeGridLine.gridIndex ] )[ activeGridLine.lineIndex ]
         const lineConfig = { ...originalConfig }
-        const { x1, y1, x2, y2, type }= originalConfig
+        const { type }= originalConfig
         if ( type==='horizontal' ){
             lineConfig.y1=snapTo50( currentDragPosition.y )
             lineConfig.y2=snapTo50( currentDragPosition.y )
@@ -155,7 +156,7 @@ const SvgPage = () =>{
 
     }
     
-    const handleDragPointerMove = ( e )=>{
+    const handleDragPointerMove = ( e:PointerEvent )=>{
         
         const bbox = svgRef.current!.getBoundingClientRect()
         const x = e.clientX -bbox.left
@@ -238,10 +239,10 @@ const SvgPage = () =>{
                         ) )}
                         
                         <svg width={ size.width }height={ size.height } x={ ( width-size.width )/2 } y={ ( height-size.height )/2 }>
-                            {grids.map( ( { x, y, width, height, nodeHead }, gridIndex )=>(
+                            {grids.map( ( gridInfo, gridIndex )=>(
                                 <g>
                                     {
-                                        getGridInfo( { x, y, width, height } ).map( ( lineInfo, lineIndex )=>{
+                                        getGridInfo( gridInfo ).map( ( lineInfo, lineIndex )=>{
                                             const config =lineInfo
                                             return( 
                                                 <g>
@@ -253,17 +254,17 @@ const SvgPage = () =>{
                                                         fill={ 'blue' } 
                                                         fillOpacity={ 0.1 } 
                                                         onPointerDown ={ ()=>{
-                                                            currentNode.current = nodeHead
+                                                            currentNode.current = gridInfo.nodeHead
                                                             setActiveGridLine( { active:true, gridIndex, lineIndex } )
                                                         } }
-                                                        onPointerOver={ ( event )=>{
+                                                        onPointerOver={ ( )=>{
                                                             console.log( 'onPointerOver', highlightBorderRef.current[ gridIndex ][ lineIndex ] )
                                                             highlightBorderRef.current[ gridIndex ][ lineIndex ].style.strokeOpacity='0.3'
                                                             setActiveGridLine( { gridIndex, lineIndex, active:true } )
                                                     
                                                         } }
                                                         
-                                                        onPointerOut={ ( event )=>{
+                                                        onPointerOut={ ( )=>{
                                                             if ( gridIndex in highlightBorderTimeout.current && highlightBorderTimeout.current[ gridIndex ][ lineIndex ] ) {
                                                                 clearTimeout( highlightBorderTimeout.current[ gridIndex ][ lineIndex ] )
                                                             }
@@ -295,12 +296,13 @@ const SvgPage = () =>{
                                         )}
                                 </g>
                             ) )}
-                            {activeGridLine.active&&<path
+                            {activeGridLine.active&&
+                            <path
                                 d ={ `M${activeLineConfig.x1} ${activeLineConfig.y1} ${activeLineConfig.x2} ${activeLineConfig.y2}` }
                                 stroke='grey'
                                 strokeWidth={ 2 }
                                 strokeOpacity={ 1 }
-                            ></path>}
+                            />}
                             {gridLines?.map( ( gridLine )=>(
                                 <path
                                     d ={ `M${gridLine.x1} ${gridLine.y1} ${gridLine.x2} ${gridLine.y2}` }
